@@ -8,8 +8,8 @@
     <description>Native Video Player Plugin</description>
     <license>MIT</license>
     <keywords>cordova,media,player,video</keywords>
-    <repo>https://github.com/moust/cordova-plugin-videoplayer.git</repo>
-    <issue>https://github.com/moust/cordova-plugin-videoplayer/issues</issue>
+    <repo>https://github.com/markhoyt84/cordova-video-player.git</repo>
+    <issue>https://github.com/markhoyt84/cordova-video-player/issues</issue>
 
     <js-module src="www/videoplayer.js" name="VideoPlayer">
         <clobbers target="VideoPlayer" />
@@ -19,11 +19,11 @@
 
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="VideoPlayer">
-                <param name="android-package" value="com.moust.cordova.videoplayer.VideoPlayer"/>
+                <param name="android-package" value="com.streetkingpins.cordova.videoplayer.VideoPlayer"/>
             </feature>
         </config-file>
 
-        <source-file src="src/android/VideoPlayer.java" target-dir="src/com/moust/cordova/videoplayer" />
+        <source-file src="src/android/VideoPlayer.java" target-dir="src/com/streetkingpins/cordova/videoplayer" />
 
     </platform>
 

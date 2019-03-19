@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/moust/cordova-plugin-videoplayer.git"
+    "url": "git+https://github.com/markhoyt84/cordova-video-player.git"
   },
   "keywords": [
     "ecosystem:cordova",
@@ -31,10 +31,10 @@
     "player",
     "fullscreen"
   ],
-  "author": "Quentin Aupetit",
+  "author": "Mark Hoyt",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/moust/cordova-plugin-videoplayer/issues"
+    "url": "https://github.com/markhoyt84/cordova-video-player/issues"
   },
-  "homepage": "https://github.com/moust/cordova-plugin-videoplayer#readme"
+  "homepage": "https://github.com/markhoyt84/cordova-video-player#readme"
 }
