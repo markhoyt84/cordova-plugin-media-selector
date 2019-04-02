@@ -1,0 +1,18 @@
+repositories{
+    jcenter()
+    maven { url "https://jitpack.io" }
+}
+
+dependencies {
+    implementation 'com.android.support.constraint:constraint-layout:1.0.2'
+    implementation 'com.android.support:cardview-v7:+'
+    implementation 'com.android.support:recyclerview-v7:23.0.0'
+}
+
+android {
+    packagingOptions {
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/LICENSE'
+    }
+}
+

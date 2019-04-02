@@ -17,6 +17,10 @@ module.exports = {
         exec(successCallback, errorCallback, "VideoPlayer", "play", [path, options]);
     },
 
+    didFetchComments: function (comments, successCallback, errorCallback) {
+        exec(successCallback, errorCallback, "VideoPlayer", "didFetchComments", [comments]);
+    },
+
     close: function (successCallback, errorCallback) {
         exec(successCallback, errorCallback, "VideoPlayer", "close", []);
     },
