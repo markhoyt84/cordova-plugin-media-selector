@@ -395,6 +395,7 @@
 package com.moust.cordova.videoplayer;
 
 import android.annotation.TargetApi;
+import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -415,9 +416,12 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.support.constraint.ConstraintLayout;
+import android.support.design.widget.BottomSheetDialog;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.Html;
+import android.text.InputType;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
@@ -428,7 +432,9 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -441,6 +447,7 @@ import com.streetkingpins.streetkingpins.R;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaArgs;
+import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaResourceApi;
 import org.apache.cordova.PluginResult;
@@ -448,11 +455,23 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
+
+import okhttp3.Headers;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 //import butterknife.BindView;
 //import butterknife.ButterKnife;
@@ -463,7 +482,7 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
 
     protected static final String ASSETS = "/android_asset/";
 
-    private CallbackContext callbackContext = null;
+    public CallbackContext callbackContext = null;
 
     private Dialog dialog;
 
@@ -473,6 +492,10 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
     private MyRecyclerViewAdapter adapter;
     private RecyclerView.LayoutManager viewManager;
     private Video videoObject;
+    private User currentUser;
+    public Boolean userHasUpvoted = false;
+    public Boolean userHasCommented = false;
+    public Boolean userIsFollowing = false;
     private MediaPlayer player;
 
     /**
@@ -514,12 +537,12 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
             PluginResult pluginResult = new PluginResult(PluginResult.Status.NO_RESULT);
             pluginResult.setKeepCallback(true);
             callbackContext.sendPluginResult(pluginResult);
-            callbackContext = null;
 
             return true;
         } else if (action.equals("didFetchComments")) {
             // clear old list
             final JSONArray comments = args.getJSONArray(0);
+            userHasCommented = args.getBoolean(1);
             List<Comment> list = new ArrayList<Comment>();
             for(int i = 0; i < comments.length(); i++){
                 Comment newComment = new Comment().constructor((JSONObject)comments.get(i));
@@ -612,13 +635,14 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         JSONObject tempVideoObject;
         try {
             aspectRatio = options.getDouble("aspectRatio");
-            marginTop = options.getDouble("marginTop");
             playerHeight = playerWidth * aspectRatio;
             tempVideoObject = options.getJSONObject("videoObject");
             videoObject = new Video().constructor(path, playerHeight, tempVideoObject);
+            currentUser = new User().constructor(options.getJSONObject("currentUser"));
+            userHasUpvoted = options.getBoolean("userHasUpvoted");
+            userIsFollowing = options.getBoolean("userIsFollowing");
         } catch (Exception e) {
             playerHeight = (double) playerWidth;
-            marginTop = 24;
         }
 
 //        videoView = new VideoView(cordova.getActivity());
@@ -635,6 +659,27 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         main.addView(toolbar);
 //        main.addView(videoView);
         main.addView(commentList);
+
+
+
+        View view = LayoutInflater.from(cordova.getContext()).inflate(R.layout.comment_input_view, null);
+        LinearLayout.LayoutParams commentBarLayout = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+        view.setLayoutParams(commentBarLayout);
+        main.addView(view);
+
+        Button sendCommentButton = view.findViewById(R.id.send_comment_button);
+        EditText sendCommentTextValue = view.findViewById(R.id.add_comment_text);
+        sendCommentButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                AsyncTask.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        addComment(sendCommentTextValue.getText().toString());
+                    }
+                });
+            }
+        });
 
         player = new MediaPlayer();
         player.setOnPreparedListener(this);
@@ -830,25 +875,320 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         RecyclerView commentList = new RecyclerView(cordova.getActivity());
         commentList.setBackgroundColor(Color.parseColor("#ffffff"));
         commentList.setLayoutManager(this.viewManager);
-        adapter = new MyRecyclerViewAdapter(cordova.getContext(), newCells, videoObject);
+        adapter = new MyRecyclerViewAdapter(cordova.getContext(), this, newCells, videoObject);
         commentList.setAdapter(adapter);
         LinearLayout.LayoutParams recyclerLayoutParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+        recyclerLayoutParams.weight = 1;
         commentList.setLayoutParams(recyclerLayoutParams);
 
         return commentList;
     }
 
     private void backButtonSelected() {
-        PluginResult result = new PluginResult(PluginResult.Status.OK);
-        result.setKeepCallback(false); // release status callback in JS side
-        callbackContext.sendPluginResult(result);
+//        PluginResult result = new PluginResult(PluginResult.Status.OK, "close");
+//        result.setKeepCallback(false); // release status callback in JS side
+//        callbackContext.sendPluginResult(result);
+        if (dialog != null) {
+            if(player.isPlaying()) {
+                player.stop();
+            }
+            player.release();
+            dialog.dismiss();
+        }
     }
+
+    private void addComment(String withText) {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("kingPinsUserGuid", this.currentUser.getGuid());
+            jsonObject.put("mediaObjectGuid", this.videoObject.getVideoGuid());
+            jsonObject.put("commentText", withText);
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        OkHttpClient client = new OkHttpClient();
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        // put your json here
+        RequestBody body = RequestBody.create(JSON, jsonObject.toString());
+        Request request = new Request.Builder()
+                .url("http://prod-api.street-kingpins.com/api/Comments")
+                .addHeader("x-ikey", "sbkpX12!")
+                .post(body)
+                .build();
+
+        Response response = null;
+        try {
+            response = client.newCall(request).execute();
+            String resStr = response.body().string();
+            if (response.code() == 200) {
+                try {
+                    JSONObject newCommentJSON = new JSONObject(resStr);
+                    this.userHasUpvoted = true;
+                    videoObject.setCommentCount(videoObject.getCommentCount() + 1);
+                    Comment newComment = new Comment().constructor(newCommentJSON);
+                    cordova.getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            adapter.commentList.add(0, newComment);
+                            adapter.notifyDataSetChanged();
+                        }
+                    });
+                } catch (Throwable t) {
+                    Log.e("My App", "Could not parse malformed JSON: \"" + resStr + "\"");
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void upvoteMedia() {
+        if (!this.userHasUpvoted) {
+            JSONObject jsonObject = new JSONObject();
+            try {
+                jsonObject.put("kingPinsUserGuid", this.currentUser.getGuid());
+                jsonObject.put("mediaObjectGuid", this.videoObject.getVideoGuid());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+            OkHttpClient client = new OkHttpClient();
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            // put your json here
+            RequestBody body = RequestBody.create(JSON, jsonObject.toString());
+            Request request = new Request.Builder()
+                    .url("http://prod-api.street-kingpins.com/api/Likes")
+                    .addHeader("x-ikey", "sbkpX12!")
+                    .post(body)
+                    .build();
+
+            Response response = null;
+            try {
+                response = client.newCall(request).execute();
+                String resStr = response.body().string();
+                if (response.code() == 200) {
+                    this.userHasUpvoted = true;
+                    videoObject.setLikeCount(videoObject.getLikeCount() + 1);
+                    cordova.getActivity().runOnUiThread(new Runnable() {
+                        public void run() {
+                            adapter.notifyItemChanged(1);
+                        }
+                    });
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void toggleFollowUser() {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("kingPinsUserGuid", this.currentUser.getGuid());
+            jsonObject.put("mediaObjectGuid", this.videoObject.getVideoGuid());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        OkHttpClient client = new OkHttpClient();
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        // put your json here
+        RequestBody body = RequestBody.create(JSON, jsonObject.toString());
+        Request request;
+        Response response = null;
+
+        if (!this.userIsFollowing) {
+            request = new Request.Builder()
+                    .url("http://prod-api.street-kingpins.com/api/FollowLinks/followEntity")
+                    .addHeader("x-ikey", "sbkpX12!")
+                    .post(body)
+                    .build();
+        } else {
+            request = new Request.Builder()
+                    .url("http://prod-api.street-kingpins.com/api/FollowLinks/unfollowEntity")
+                    .addHeader("x-ikey", "sbkpX12!")
+                    .post(body)
+                    .build();
+        }
+        try {
+            response = client.newCall(request).execute();
+            String resStr = response.body().string();
+            if (response.code() == 200) {
+                this.userIsFollowing = !this.userIsFollowing;
+                cordova.getActivity().runOnUiThread(new Runnable() {
+                    public void run() {
+                        adapter.notifyItemChanged(1);
+                    }
+                });
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void reportMedia(String withText) {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("reportingUserGuid", this.currentUser.getGuid());
+            jsonObject.put("mediaObjectGuid", this.videoObject.getVideoGuid());
+            jsonObject.put("reportText", withText);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        OkHttpClient client = new OkHttpClient();
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        // put your json here
+        RequestBody body = RequestBody.create(JSON, jsonObject.toString());
+        Response response = null;
+        Request request = new Request.Builder()
+                .url("http://prod-api.street-kingpins.com/api/MediaReports")
+                .addHeader("x-ikey", "sbkpX12!")
+                .post(body)
+                .build();
+        try {
+            response = client.newCall(request).execute();
+            String resStr = response.body().string();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteMedia() {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("guid", this.videoObject.getVideoGuid());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        OkHttpClient client = new OkHttpClient();
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        RequestBody body = RequestBody.create(JSON, jsonObject.toString());
+        Response response = null;
+        Request request = new Request.Builder()
+                .url("http://prod-api.street-kingpins.com/api/UserVideos/deleteUserVideo")
+                .addHeader("x-ikey", "sbkpX12!")
+                .post(body)
+                .build();
+        try {
+            response = client.newCall(request).execute();
+            String resStr = response.body().string();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public synchronized void showActionDialog() {
+
+        final CordovaInterface cordova = this.cordova;
+        Runnable runnable = new Runnable() {
+            public void run() {
+
+                final AlertDialog.Builder builder;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+                    builder = new AlertDialog.Builder(cordova.getActivity(), 1);
+                } else {
+                    builder = new AlertDialog.Builder(cordova.getActivity());
+                }
+
+                builder
+                        .setTitle("More Options")
+                        .setCancelable(true);
+
+                builder.setNegativeButton("Cancel",
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.cancel();
+                            }
+                        });
+
+                if (videoObject.getOwnerGuid().equals(currentUser.getGuid())) {
+                    final String[] buttons = {"Delete Media"};
+                    builder.setItems(buttons, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                            deleteMedia();
+                        }
+                    });
+                } else {
+                    final String[] buttons = {"Report Media"};
+                    builder.setItems(buttons, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                            showReportMediaAlert();
+                        }
+                    });
+
+                }
+
+                builder.setOnCancelListener(new AlertDialog.OnCancelListener() {
+                    public void onCancel(DialogInterface dialog) {
+                        dialog.dismiss();
+                    }
+                });
+
+                dialog = builder.create();
+                dialog.show();
+            }
+        };
+        this.cordova.getActivity().runOnUiThread(runnable);
+    }
+
+    public void showReportMediaAlert() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(cordova.getContext());
+        builder.setTitle("Report Media");
+        builder.setMessage("Why are you reporting this media?");
+
+// Set up the input
+        final EditText input = new EditText(cordova.getContext());
+// Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        builder.setView(input);
+
+// Set up the buttons
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                reportMedia(input.getText().toString());
+                dialog.dismiss();
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        builder.show();
+    }
+
+//    public String getTimeSince(String time) {
+//        DateFormat sdf = new SimpleDateFormat("hh:mm:ss");
+//        try {
+//            // To get the date object from the string just called the
+//            // parse method and pass the time string to it. This method
+//            // throws ParseException if the time string is invalid.
+//            // But remember as we don't pass the date information this
+//            // date object will represent the 1st of january 1970.
+//            Date date = sdf.parse(time);
+//            System.out.println("Date and Time: " + date);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 }
 
 class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
     public List<Comment> commentList;
     private Context mContext;
+    private VideoPlayer mVideoPlayerRef;
     private Video videoObject;
 
     private static final int TYPE_VIDEO = 0;
@@ -857,9 +1197,34 @@ class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
     private static final int TYPE_ICON_TEXT = 3;
     private static final int TYPE_COMMENT = 4;
 
-    public MyRecyclerViewAdapter(Context context, List<Comment> commentList, Video videoObject) {
+    public Drawable isUserHasCommented() {
+        if (mVideoPlayerRef.userHasCommented) {
+            return mContext.getResources().getDrawable( R.drawable.comment_filled );
+        } else {
+            return mContext.getResources().getDrawable( R.drawable.comment_unfilled );
+        }
+    }
+
+    public Drawable isUserHasUpvoted() {
+        if (mVideoPlayerRef.userHasUpvoted) {
+            return mContext.getResources().getDrawable( R.drawable.upvote_filled );
+        } else {
+            return mContext.getResources().getDrawable( R.drawable.upvote_unfilled );
+        }
+    }
+
+    public Drawable isUserIsFollowing() {
+        if (mVideoPlayerRef.userIsFollowing) {
+            return mContext.getResources().getDrawable( R.drawable.follow_user_filled );
+        } else {
+            return mContext.getResources().getDrawable( R.drawable.follow_user_unfilled );
+        }
+    }
+
+    public MyRecyclerViewAdapter(Context context, VideoPlayer videoPlayerRef, List<Comment> commentList, Video videoObject) {
         this.commentList = commentList;
         this.mContext = context;
+        this.mVideoPlayerRef = videoPlayerRef;
         this.videoObject = videoObject;
     }
 
@@ -869,7 +1234,9 @@ class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
         switch (viewType) {
             case TYPE_VIDEO: {
                 View view = LayoutInflater.from(context).inflate(R.layout.media_video_row, parent, false);
-                view.getLayoutParams().height = (int)videoObject.getVideoHeight();
+                if (videoObject != null) {
+                    view.getLayoutParams().height = (int) videoObject.getVideoHeight();
+                }
                 return new VideoRowViewHolder(view);
             }
             case TYPE_COMMENT: {
@@ -886,6 +1253,11 @@ class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
             }
             case TYPE_TEXT: {
                 View view = LayoutInflater.from(context).inflate(R.layout.media_caption_row, parent, false);
+                if (videoObject != null) {
+                    if (videoObject.getVideoCaption().equals("")) {
+                        view.getLayoutParams().height = 0;
+                    }
+                }
                 return new CaptionRowViewHolder(view);
             }
             default:
@@ -896,18 +1268,59 @@ class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
     @Override
     public void onBindViewHolder(BaseViewHolder customViewHolder, int i) {
         if (i == 0) {
-            customViewHolder.bind(this.videoObject.getVideoURL(), i);
+            customViewHolder.setIsRecyclable(false);
+            customViewHolder.bind(this.videoObject.getVideoURL(), i, this);
         } else if (i == 1) {
-            customViewHolder.bind(this.videoObject, i);
+            customViewHolder.bind(this.videoObject, i, this);
+            customViewHolder.setCompletionHandler(new CompletionHandler() {
+                @Override
+                public void handle(String reason) {
+//                JSONObject resultObject = new JSONObject();
+//                PluginResult result = new PluginResult(PluginResult.Status.OK, "comment");
+//                callbackContext.sendPluginResult(result);
+                    if (reason == "more") {
+                        mVideoPlayerRef.showActionDialog();
+                    } else if (reason == "upvote") {
+                        AsyncTask.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                mVideoPlayerRef.upvoteMedia();
+                            }
+                        });
+                    } else if (reason == "comment") {
+                        showKeyboard();
+                    } else if (reason == "follow") {
+                        AsyncTask.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                mVideoPlayerRef.toggleFollowUser();
+                            }
+                        });
+                    }
+                }
+            });
         } else if (i == 2) {
-            customViewHolder.bind(this.videoObject, i);
+            customViewHolder.bind(this.videoObject, i, this);
         } else if (i == 3) {
-            customViewHolder.bind(this.videoObject, i);
+            customViewHolder.bind(this.videoObject, i, this);
+            customViewHolder.setCompletionHandler(new CompletionHandler() {
+                @Override
+                public void handle(String reason) {
+//                JSONObject resultObject = new JSONObject();
+//                PluginResult result = new PluginResult(PluginResult.Status.OK, "comment");
+//                callbackContext.sendPluginResult(result);
+                    if (reason.equals("pushToLocation")) {
+                        PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, reason);
+                        pluginResult.setKeepCallback(true);
+                        mVideoPlayerRef.callbackContext.sendPluginResult(pluginResult);
+                    }
+                }
+            });
         } else if (i == 4) {
-            customViewHolder.bind(this.videoObject, i);
+            customViewHolder.bind(this.videoObject, i, this);
         } else {
             Comment comment = commentList.get(i - 5);
-            customViewHolder.bind(comment, i);
+            customViewHolder.bind(comment, i, this);
         }
     }
 
@@ -942,15 +1355,31 @@ class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
             return TYPE_COMMENT;
         }
     }
+
+    public void showKeyboard() {
+        InputMethodManager imm = (InputMethodManager) mContext.getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.toggleSoftInput(InputMethodManager.SHOW_FORCED,0);
+    }
 }
 
 abstract class BaseViewHolder<T> extends RecyclerView.ViewHolder {
+
+    CompletionHandler savedHandler;
+
     BaseViewHolder(View itemView) {
         super(itemView);
         itemView.setBackgroundColor(Color.parseColor("#ffffff"));
 //        ButterKnife.bind(this, itemView);
     }
-    public abstract void bind(T type, int row);
+    public abstract void bind(T type, int row, MyRecyclerViewAdapter adapter);
+
+    void setCompletionHandler(CompletionHandler h) {
+        savedHandler = h;
+    }
+}
+
+interface CompletionHandler {
+    public void handle(String reason);
 }
 
 class VideoRowViewHolder extends BaseViewHolder<String> {
@@ -963,14 +1392,32 @@ class VideoRowViewHolder extends BaseViewHolder<String> {
     }
 
     @Override
-    public void bind(String videoURL, int row) {
+    public void bind(String videoURL, int row, MyRecyclerViewAdapter adapter) {
         Uri videoURI = Uri.parse(videoURL);
         videoView.setVideoURI(videoURI);
         this.videoView.start();
+
+        videoView.setOnPreparedListener(new OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                mp.setLooping(true);
+            }
+        });
+
+        videoView.setOnErrorListener(new OnErrorListener() {
+            @Override
+            public boolean onError(MediaPlayer mp, int what, int extra) {
+
+                return false;
+            }
+        });
     }
 }
 
 class ActionRowViewHolder extends BaseViewHolder<Video> {
+
+    LinearLayout upvoteButton;
+    LinearLayout commentButton;
     ImageButton likeButtonIcon;
     ImageButton commentButtonIcon;
     TextView likeButtonText;
@@ -986,16 +1433,54 @@ class ActionRowViewHolder extends BaseViewHolder<Video> {
         this.commentButtonIcon = view.findViewById(R.id.comment_button_icon);
         this.followButton = view.findViewById(R.id.follow_button);
         this.moreActionButton = view.findViewById(R.id.more_button);
+        this.upvoteButton = view.findViewById(R.id.upvote_button);
+        this.commentButton = view.findViewById(R.id.comment_button);
     }
 
     @Override
-    public void bind(Video videoObject, int row) {
+    public void bind(Video videoObject, int row, MyRecyclerViewAdapter adapter) {
         String likeCount = Integer.toString(videoObject.getLikeCount());
         String commentCount = Integer.toString(videoObject.getCommentCount());
         this.likeButtonText.setTextColor(Color.parseColor("#000000"));
         this.commentButtonText.setTextColor(Color.parseColor("#000000"));
         this.likeButtonText.setText(likeCount);
         this.commentButtonText.setText(commentCount);
+
+        likeButtonIcon.setImageDrawable(adapter.isUserHasUpvoted());
+
+        commentButtonIcon.setImageDrawable(adapter.isUserHasCommented());
+
+        followButton.setImageDrawable(adapter.isUserIsFollowing());
+
+        moreActionButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                savedHandler.handle("more");
+//                PluginResult result = new PluginResult(PluginResult.Status.OK, "more");
+//                result.setKeepCallback(true);
+//                callbackContext.sendPluginResult(result);
+            }
+        });
+
+        followButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                savedHandler.handle("follow");
+//                PluginResult result = new PluginResult(PluginResult.Status.OK, "follow");
+//                callbackContext.sendPluginResult(result);
+            }
+        });
+
+        upvoteButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                savedHandler.handle("upvote");
+            }
+        });
+
+        commentButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                savedHandler.handle("comment");
+            }
+        });
+
     }
 }
 
@@ -1012,11 +1497,18 @@ class IconRowViewHolder extends BaseViewHolder<Video> {
     }
 
     @Override
-    public void bind(Video videoObject, int row) {
+    public void bind(Video videoObject, int row, MyRecyclerViewAdapter adapter) {
         if (row == 3) {
+            // Location Row
             iconImageView.setBackgroundResource(R.drawable.map_marker_filled);
             textView.setText(videoObject.getAddress());
+            itemView.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    savedHandler.handle("pushToLocation");
+                }
+            });
         } else if (row == 4) {
+            // Tricks Row
             iconImageView.setBackgroundResource(R.drawable.skateboarder_filled);
             textView.setText(videoObject.getTrickString());
         }
@@ -1032,8 +1524,12 @@ class CaptionRowViewHolder extends BaseViewHolder<Video> {
     }
 
     @Override
-    public void bind(Video videoObject, int row) {
-        textView.setText(videoObject.getVideoCaption());
+    public void bind(Video videoObject, int row, MyRecyclerViewAdapter adapter) {
+        if (videoObject.getVideoCaption() != "") {
+            textView.setText(videoObject.getVideoCaption());
+        } else {
+            this.itemView.getLayoutParams().height = 0;
+        }
     }
 }
 
@@ -1043,19 +1539,22 @@ class CommentViewHolder extends BaseViewHolder<Comment> {
 //    @BindView(R.id.comment_text)
     TextView commentTextView;
     TextView commenterUsernameText;
+    TextView commentedOnDate;
     ImageView userProfileView;
 
     CommentViewHolder(View itemView) {
         super(itemView);
         this.commentTextView = itemView.findViewById(R.id.comment_text);
         this.commenterUsernameText = itemView.findViewById(R.id.commenter_username_text);
+        this.commentedOnDate = itemView.findViewById(R.id.commented_on_date);
         this.userProfileView = itemView.findViewById(R.id.user_avatar_view);
     }
 
     @Override
-    public void bind(Comment commentObject, int row) {
+    public void bind(Comment commentObject, int row, MyRecyclerViewAdapter adapter) {
         commentTextView.setText(commentObject.getCommentText());
         commenterUsernameText.setText(commentObject.getKingPinsUserName());
+        commentedOnDate.setText(commentObject.getCreatedAt());
         new DownloadImageTask(userProfileView)
                 .execute(commentObject.getKingPinsUserProfileImageUrl());
     }
@@ -1105,6 +1604,7 @@ class Video {
     private String videoURL;
     private String videoGuid;
     private String caption;
+    private JSONObject geoPoint;
     private double videoHeight;
     private String address;
     private String ownerGuid;
@@ -1127,12 +1627,10 @@ class Video {
         try {
             this.videoGuid = videoObject.getString("guid");
             this.ownerGuid = videoObject.getString("ownerGuid");
-            this.address = videoObject.getString("address");
-            this.city = videoObject.getString("city");
             this.caption = videoObject.getString("caption");
-            this.state = videoObject.getString("state");
             this.commentCount = videoObject.getInt("commentCount");
             this.likeCount = videoObject.getInt("likeCount");
+            this.geoPoint = videoObject.getJSONObject("geoPoint");
             JSONArray arr = videoObject.getJSONArray("trickTypes");
             List<String> list = new ArrayList<String>();
             for(int i = 0; i < arr.length(); i++){
@@ -1143,12 +1641,24 @@ class Video {
 
         }
 
+        try {
+            this.address = videoObject.getString("address");
+            this.city = videoObject.getString("city");
+            this.state = videoObject.getString("state");
+        } catch (Exception e) {
+            Log.v("Error", "Error getting address, state, or city");
+        }
+
 
         return this;
     }
 
     public String getVideoURL() {
         return videoURL;
+    }
+
+    public String getVideoGuid() {
+        return videoGuid;
     }
 
     public double getVideoHeight() {
@@ -1160,7 +1670,15 @@ class Video {
     }
 
     public String getAddress() {
-        return address;
+        if (this.address != null) {
+            return address;
+        } else {
+            try {
+                return "Lat: " + this.geoPoint.get("lat") + ", Lng: " + this.geoPoint.get("lng");
+            } catch (Exception e) {
+                return "Unknown Location";
+            }
+        }
     }
 
     public String getTrickString() {
@@ -1175,8 +1693,20 @@ class Video {
         return likeCount;
     }
 
+    public void setLikeCount(int likeCount) {
+        this.likeCount = likeCount;
+    }
+
+    public void setCommentCount(int commentCount) {
+        this.commentCount = commentCount;
+    }
+
     public int getCommentCount() {
         return commentCount;
+    }
+
+    public String getOwnerGuid() {
+        return ownerGuid;
     }
 }
 
@@ -1202,5 +1732,37 @@ class DownloadImageTask extends AsyncTask<String, Void, Bitmap> {
 
     protected void onPostExecute(Bitmap result) {
         bmImage.setImageBitmap(result);
+    }
+}
+
+class User {
+    private String guid;
+    private String profileImageURL;
+    private String userName;
+
+    public User constructor(JSONObject userObject) {
+
+        try {
+            this.guid = userObject.getString("guid");
+            this.profileImageURL = userObject.getString("profileImageURL");
+            this.userName = userObject.getString("userName");
+        } catch (Exception e) {
+
+        }
+
+
+        return this;
+    }
+
+    public String getGuid() {
+        return guid;
+    }
+
+    public String getProfileImageURL() {
+        return profileImageURL;
+    }
+
+    public String getUserName() {
+        return userName;
     }
 }

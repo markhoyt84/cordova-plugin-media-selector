@@ -2,6 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a5ad2ce2-db1b-4742-b5e5-32b239dbe024" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/plugin.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/android/VideoPlayer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/android/VideoPlayer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/android/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/src/android/build.gradle" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/www/videoplayer.js" beforeDir="false" afterPath="$PROJECT_DIR$/www/videoplayer.js" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
@@ -28,8 +32,8 @@
       <file leaf-file-name="VideoPlayer.java" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/android/VideoPlayer.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="11756">
-              <caret line="1136" column="56" lean-forward="true" selection-start-line="1136" selection-start-column="56" selection-end-line="1136" selection-end-column="56" />
+            <state relative-caret-position="245">
+              <caret line="1697" column="5" lean-forward="true" selection-start-line="1697" selection-start-column="5" selection-end-line="1697" selection-end-column="5" />
             </state>
           </provider>
         </entry>
@@ -37,8 +41,8 @@
       <file leaf-file-name="videoplayer.js" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/www/videoplayer.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="195">
-              <caret line="13" lean-forward="true" selection-start-line="13" selection-end-line="13" />
+            <state relative-caret-position="285">
+              <caret line="19" selection-start-line="19" selection-end-line="21" selection-end-column="6" />
             </state>
           </provider>
         </entry>
@@ -46,8 +50,8 @@
       <file leaf-file-name="plugin.xml" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/plugin.xml">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="150">
-              <caret line="10" column="71" lean-forward="true" selection-start-line="10" selection-start-column="71" selection-end-line="10" selection-end-column="71" />
+            <state relative-caret-position="165">
+              <caret line="11" column="76" lean-forward="true" selection-start-line="11" selection-start-column="76" selection-end-line="11" selection-end-column="76" />
             </state>
           </provider>
         </entry>
@@ -55,8 +59,8 @@
       <file leaf-file-name="build.gradle" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/android/build.gradle">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="120">
-              <caret line="8" column="63" lean-forward="true" selection-start-line="6" selection-start-column="3" selection-end-line="8" selection-end-column="63" />
+            <state relative-caret-position="150">
+              <caret line="10" column="54" lean-forward="true" selection-start-line="6" selection-start-column="3" selection-end-line="10" selection-end-column="54" />
             </state>
           </provider>
         </entry>
@@ -77,10 +81,10 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/package.json" />
-        <option value="$PROJECT_DIR$/plugin.xml" />
-        <option value="$PROJECT_DIR$/src/android/build.gradle" />
-        <option value="$PROJECT_DIR$/src/android/VideoPlayer.java" />
         <option value="$PROJECT_DIR$/www/videoplayer.js" />
+        <option value="$PROJECT_DIR$/src/android/build.gradle" />
+        <option value="$PROJECT_DIR$/plugin.xml" />
+        <option value="$PROJECT_DIR$/src/android/VideoPlayer.java" />
       </list>
     </option>
   </component>
@@ -92,10 +96,10 @@
     <detection-done>true</detection-done>
     <sorting>DEFINITION_ORDER</sorting>
   </component>
-  <component name="ProjectFrameBounds" fullScreen="true">
-    <option name="y" value="23" />
-    <option name="width" value="2560" />
-    <option name="height" value="1337" />
+  <component name="ProjectFrameBounds" extendedState="6" fullScreen="true">
+    <option name="y" value="671" />
+    <option name="width" value="80" />
+    <option name="height" value="22" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
@@ -108,6 +112,17 @@
             <path>
               <item name="cordova-plugin-videoplayer-master" type="b2602c69:ProjectViewProjectNode" />
               <item name="cordova-plugin-videoplayer-master" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="cordova-plugin-videoplayer-master" type="b2602c69:ProjectViewProjectNode" />
+              <item name="cordova-plugin-videoplayer-master" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="cordova-plugin-videoplayer-master" type="b2602c69:ProjectViewProjectNode" />
+              <item name="cordova-plugin-videoplayer-master" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="android" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -149,12 +164,13 @@
       <workItem from="1553000317434" duration="2824000" />
       <workItem from="1553180504066" duration="486000" />
       <workItem from="1553361983358" duration="18000" />
-      <workItem from="1554154313399" duration="2109000" />
+      <workItem from="1554154313399" duration="3911000" />
+      <workItem from="1554391342169" duration="2450000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="5437000" />
+    <option name="totallyTimeSpent" value="9689000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="0" width="2560" height="1440" extended-state="6" />
@@ -165,8 +181,8 @@
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Event Log" order="7" side_tool="true" />
       <window_info anchor="bottom" id="Run" order="2" />
-      <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info id="npm" order="2" side_tool="true" />
+      <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info anchor="bottom" id="Terminal" order="7" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
@@ -187,6 +203,76 @@
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/package.json">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="210">
+          <caret line="14" column="25" selection-start-line="14" selection-start-column="25" selection-end-line="14" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/android/VideoPlayer.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="19575">
+          <caret line="1305" column="16" lean-forward="true" selection-start-line="1305" selection-start-column="16" selection-end-line="1305" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/plugin.xml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="150">
+          <caret line="10" column="71" lean-forward="true" selection-start-line="10" selection-start-column="71" selection-end-line="10" selection-end-column="71" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/android/build.gradle">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="285">
+          <caret line="19" lean-forward="true" selection-start-line="19" selection-end-line="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/www/videoplayer.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="285">
+          <caret line="19" column="74" selection-start-line="19" selection-start-column="60" selection-end-line="19" selection-end-column="74" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/package.json">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="210">
+          <caret line="14" column="25" selection-start-line="14" selection-start-column="25" selection-end-line="14" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/android/VideoPlayer.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="19575">
+          <caret line="1305" column="16" lean-forward="true" selection-start-line="1305" selection-start-column="16" selection-end-line="1305" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/plugin.xml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="150">
+          <caret line="10" column="71" lean-forward="true" selection-start-line="10" selection-start-column="71" selection-end-line="10" selection-end-column="71" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/android/build.gradle">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="285">
+          <caret line="19" lean-forward="true" selection-start-line="19" selection-end-line="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/www/videoplayer.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="285">
+          <caret line="19" column="74" selection-start-line="19" selection-start-column="60" selection-end-line="19" selection-end-column="74" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/package.json">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="210">
@@ -280,29 +366,29 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/plugin.xml">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="150">
-          <caret line="10" column="71" lean-forward="true" selection-start-line="10" selection-start-column="71" selection-end-line="10" selection-end-column="71" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/android/build.gradle">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="8" column="63" lean-forward="true" selection-start-line="6" selection-start-column="3" selection-end-line="8" selection-end-column="63" />
+        <state relative-caret-position="165">
+          <caret line="11" column="76" lean-forward="true" selection-start-line="11" selection-start-column="76" selection-end-line="11" selection-end-column="76" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/android/VideoPlayer.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="11756">
-          <caret line="1136" column="56" lean-forward="true" selection-start-line="1136" selection-start-column="56" selection-end-line="1136" selection-end-column="56" />
+        <state relative-caret-position="245">
+          <caret line="1697" column="5" lean-forward="true" selection-start-line="1697" selection-start-column="5" selection-end-line="1697" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/android/build.gradle">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="150">
+          <caret line="10" column="54" lean-forward="true" selection-start-line="6" selection-start-column="3" selection-end-line="10" selection-end-column="54" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/www/videoplayer.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="195">
-          <caret line="13" lean-forward="true" selection-start-line="13" selection-end-line="13" />
+        <state relative-caret-position="285">
+          <caret line="19" selection-start-line="19" selection-end-line="21" selection-end-column="6" />
         </state>
       </provider>
     </entry>

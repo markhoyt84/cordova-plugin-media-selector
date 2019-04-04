@@ -25,6 +25,7 @@
 
         <source-file src="src/android/VideoPlayer.java" target-dir="src/com/moust/cordova/videoplayer" />
 
+        <framework src="src/android/build.gradle" custom="true" type="gradleReference" />
     </platform>
 
 </plugin>
