@@ -487,7 +487,8 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
     private Dialog dialog;
 
     private VideoView videoView;
-    private Toolbar toolbar;
+    private View toolbar;
+    private View commentInputView;
     private RecyclerView commentList;
     private MyRecyclerViewAdapter adapter;
     private RecyclerView.LayoutManager viewManager;
@@ -497,6 +498,8 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
     public Boolean userHasCommented = false;
     public Boolean userIsFollowing = false;
     private MediaPlayer player;
+
+    private String userDidLikeMediaWithGuid;
 
     /**
      * Executes the request and returns PluginResult.
@@ -558,15 +561,16 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
             });
         } else if (action.equals("close")) {
             if (dialog != null) {
-                if(player.isPlaying()) {
-                    player.stop();
-                }
-                player.release();
                 dialog.dismiss();
             }
 
             if (callbackContext != null) {
-                PluginResult result = new PluginResult(PluginResult.Status.OK);
+                PluginResult result;
+                if (this.userDidLikeMediaWithGuid != null) {
+                    result = new PluginResult(PluginResult.Status.OK, "likedGuid:" + this.userDidLikeMediaWithGuid);
+                } else {
+                    result = new PluginResult(PluginResult.Status.OK);
+                }
                 result.setKeepCallback(false); // release status callback in JS side
                 callbackContext.sendPluginResult(result);
                 callbackContext = null;
@@ -618,19 +622,12 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         main.setHorizontalGravity(Gravity.FILL_HORIZONTAL);
         main.setVerticalGravity(Gravity.TOP);
 
-//        WindowManager mW = (WindowManager)cordova.getActivity().getSystemService(Context.WINDOW_SERVICE);
-//        int screenWidth = mW.getDefaultDisplay().getWidth();
-//        int screenHeight = mW.getDefaultDisplay().getHeight();
-//
-//        videoView = new VideoView(cordova.getActivity());
-//
         DisplayMetrics displayMetrics = new DisplayMetrics();
         WindowManager windowmanager = (WindowManager) cordova.getActivity().getApplicationContext().getSystemService(Context.WINDOW_SERVICE);
         windowmanager.getDefaultDisplay().getMetrics(displayMetrics);
 
         int playerWidth = displayMetrics.widthPixels;
         double playerHeight;
-        double marginTop;
         double aspectRatio;
         JSONObject tempVideoObject;
         try {
@@ -645,15 +642,8 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
             playerHeight = (double) playerWidth;
         }
 
-//        videoView = new VideoView(cordova.getActivity());
-//        videoView.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-//
-//        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(playerWidth, playerHeight);
-//        videoView.setLayoutParams(params);
-
-        // videoView.setVideoURI(uri);
-        // videoView.setVideoPath(path);
         toolbar = createToolBar();
+
         commentList = createRecyclerView(videoObject);
 
         main.addView(toolbar);
@@ -662,14 +652,14 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
 
 
 
-        View view = LayoutInflater.from(cordova.getContext()).inflate(R.layout.comment_input_view, null);
+        commentInputView = LayoutInflater.from(cordova.getContext()).inflate(R.layout.comment_input_view, null);
         LinearLayout.LayoutParams commentBarLayout = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        view.setLayoutParams(commentBarLayout);
-        main.addView(view);
+        commentInputView.setLayoutParams(commentBarLayout);
+        main.addView(commentInputView);
 
-        Button sendCommentButton = view.findViewById(R.id.send_comment_button);
-        EditText sendCommentTextValue = view.findViewById(R.id.add_comment_text);
+        Button sendCommentButton = commentInputView.findViewById(R.id.send_comment_button);
+        EditText sendCommentTextValue = commentInputView.findViewById(R.id.add_comment_text);
         sendCommentButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 AsyncTask.execute(new Runnable() {
@@ -680,70 +670,70 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
                 });
             }
         });
-
-        player = new MediaPlayer();
-        player.setOnPreparedListener(this);
-        player.setOnCompletionListener(this);
-        player.setOnErrorListener(this);
-
-        if (path.startsWith(ASSETS)) {
-            String f = path.substring(15);
-            AssetFileDescriptor fd = null;
-            try {
-                fd = cordova.getActivity().getAssets().openFd(f);
-                player.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
-            } catch (Exception e) {
-                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
-                result.setKeepCallback(false); // release status callback in JS side
-                callbackContext.sendPluginResult(result);
-                callbackContext = null;
-                return;
-            }
-        }
-        else {
-            try {
-                player.setDataSource(path);
-            } catch (Exception e) {
-                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
-                result.setKeepCallback(false); // release status callback in JS side
-                callbackContext.sendPluginResult(result);
-                callbackContext = null;
-                return;
-            }
-        }
-
-        try {
-            float volume = Float.valueOf(options.getString("volume"));
-            Log.d(LOG_TAG, "setVolume: " + volume);
-            player.setVolume(volume, volume);
-        } catch (Exception e) {
-            PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
-            result.setKeepCallback(false); // release status callback in JS side
-            callbackContext.sendPluginResult(result);
-            callbackContext = null;
-            return;
-        }
-
-        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
-            try {
-                int scalingMode = options.getInt("scalingMode");
-                switch (scalingMode) {
-                    case MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING:
-                        Log.d(LOG_TAG, "setVideoScalingMode VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING");
-                        player.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
-                        break;
-                    default:
-                        Log.d(LOG_TAG, "setVideoScalingMode VIDEO_SCALING_MODE_SCALE_TO_FIT");
-                        player.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
-                }
-            } catch (Exception e) {
-                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
-                result.setKeepCallback(false); // release status callback in JS side
-                callbackContext.sendPluginResult(result);
-                callbackContext = null;
-                return;
-            }
-        }
+//
+//        player = new MediaPlayer();
+//        player.setOnPreparedListener(this);
+//        player.setOnCompletionListener(this);
+//        player.setOnErrorListener(this);
+//
+//        if (path.startsWith(ASSETS)) {
+//            String f = path.substring(15);
+//            AssetFileDescriptor fd = null;
+//            try {
+//                fd = cordova.getActivity().getAssets().openFd(f);
+//                player.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
+//            } catch (Exception e) {
+//                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+//                result.setKeepCallback(false); // release status callback in JS side
+//                callbackContext.sendPluginResult(result);
+//                callbackContext = null;
+//                return;
+//            }
+//        }
+//        else {
+//            try {
+//                player.setDataSource(path);
+//            } catch (Exception e) {
+//                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+//                result.setKeepCallback(false); // release status callback in JS side
+//                callbackContext.sendPluginResult(result);
+//                callbackContext = null;
+//                return;
+//            }
+//        }
+//
+//        try {
+//            float volume = Float.valueOf(options.getString("volume"));
+//            Log.d(LOG_TAG, "setVolume: " + volume);
+//            player.setVolume(volume, volume);
+//        } catch (Exception e) {
+//            PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+//            result.setKeepCallback(false); // release status callback in JS side
+//            callbackContext.sendPluginResult(result);
+//            callbackContext = null;
+//            return;
+//        }
+//
+//        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
+//            try {
+//                int scalingMode = options.getInt("scalingMode");
+//                switch (scalingMode) {
+//                    case MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING:
+//                        Log.d(LOG_TAG, "setVideoScalingMode VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING");
+//                        player.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
+//                        break;
+//                    default:
+//                        Log.d(LOG_TAG, "setVideoScalingMode VIDEO_SCALING_MODE_SCALE_TO_FIT");
+//                        player.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
+//                }
+//            } catch (Exception e) {
+//                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+//                result.setKeepCallback(false); // release status callback in JS side
+//                callbackContext.sendPluginResult(result);
+//                callbackContext = null;
+//                return;
+//            }
+//        }
 
 //        final SurfaceHolder mHolder = videoView.getHolder();
 //        mHolder.setKeepScreenOn(true);
@@ -812,60 +802,29 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         }
     }
 
-    private Toolbar createToolBar() {
-//        LinearLayout toolbar = new LinearLayout(cordova.getActivity());
-//        toolbar.setOrientation(LinearLayout.HORIZONTAL);
-//        toolbar.setBackgroundColor(Color.BLACK);
-//        // Close/Done button
-//
-        Resources activityRes = cordova.getActivity().getResources();
-        ImageButton close = new ImageButton(cordova.getActivity());
-        close.setId(Integer.valueOf(5));
-        int closeResId = activityRes.getIdentifier("ic_action_remove", "drawable", cordova.getActivity().getPackageName());
-        Drawable closeIcon = activityRes.getDrawable(closeResId);
-
-        if (Build.VERSION.SDK_INT >= 16)
-            close.setBackground(null);
-        else
-            close.setBackgroundDrawable(null);
-        close.setImageDrawable(closeIcon);
-        close.setColorFilter(Color.WHITE);
-        close.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        if (Build.VERSION.SDK_INT >= 16)
-            close.getAdjustViewBounds();
-
-        close.setOnClickListener(new View.OnClickListener() {
+    private View createToolBar() {
+        View view = LayoutInflater.from(cordova.getContext()).inflate(R.layout.media_tool_bar, null);
+        LinearLayout.LayoutParams toolBarLayout = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+        view.setLayoutParams(toolBarLayout);
+        TextView userNameText = view.findViewById(R.id.tool_bar_user_name_value);
+        ImageView userAvatarView = view.findViewById(R.id.tool_bar_user_avatar_view);
+        TextView createdAtText = view.findViewById(R.id.tool_bar_created_at_text);
+        TextView locationText = view.findViewById(R.id.tool_bar_location_value);
+        ImageButton backButton = view.findViewById(R.id.tool_bar_back_button);
+        userNameText.setText(videoObject.getOwnerUsername());
+        createdAtText.setText(videoObject.getCreatedAt());
+        locationText.setText(videoObject.getAddress());
+        backButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 backButtonSelected();
             }
         });
-//        toolbar.addView(close);
-//
-//        ImageView userAvatarImage =  new ImageView(cordova.getActivity());
-//        LinearLayout.LayoutParams userAvatarViewLayoutParams = new LinearLayout.LayoutParams(60, 60);
-//        userAvatarViewLayoutParams.topMargin = 5;
-//        userAvatarImage.setLayoutParams(userAvatarViewLayoutParams);
-//        userAvatarImage.setBackgroundColor(Color.WHITE);
-//        toolbar.addView(userAvatarImage);
-//
-//        return toolbar;
 
-        Toolbar toolbar = new Toolbar(cordova.getContext());
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 168);
-        toolbar.setLayoutParams(layoutParams);
-        toolbar.setBackgroundColor(Color.BLACK);
-        toolbar.setTitle("Skater Username");
-        toolbar.setSubtitle("City, State");
-        toolbar.setVisibility(View.VISIBLE);
+        new DownloadImageTask(userAvatarView)
+                .execute(videoObject.getOwnerProfileImageUrl());
 
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT);
-        params.gravity = Gravity.END;
-        params.rightMargin = 0;
-        close.setLayoutParams(params);
-        toolbar.addView(close);
-
-        return toolbar;
+        return view;
     }
 
     private RecyclerView createRecyclerView(Video videoObject) {
@@ -885,15 +844,15 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         return commentList;
     }
 
-    private void backButtonSelected() {
+    public void backButtonSelected() {
 //        PluginResult result = new PluginResult(PluginResult.Status.OK, "close");
 //        result.setKeepCallback(false); // release status callback in JS side
 //        callbackContext.sendPluginResult(result);
         if (dialog != null) {
-            if(player.isPlaying()) {
-                player.stop();
-            }
-            player.release();
+//            if(player.isPlaying()) {
+//                player.stop();
+//            }
+//            player.release();
             dialog.dismiss();
         }
     }
@@ -929,10 +888,17 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
                     this.userHasUpvoted = true;
                     videoObject.setCommentCount(videoObject.getCommentCount() + 1);
                     Comment newComment = new Comment().constructor(newCommentJSON);
+                    newComment.setCreatedAt("Just Now");
                     cordova.getActivity().runOnUiThread(new Runnable() {
                         public void run() {
+                            userHasCommented = true;
+                            EditText sendCommentTextValue = commentInputView.findViewById(R.id.add_comment_text);
+                            sendCommentTextValue.setText("");
+                            videoObject.setCommentCount(videoObject.getCommentCount() + 1);
                             adapter.commentList.add(0, newComment);
                             adapter.notifyDataSetChanged();
+                            hideKeyboard();
+
                         }
                     });
                 } catch (Throwable t) {
@@ -970,12 +936,16 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
                 String resStr = response.body().string();
                 if (response.code() == 200) {
                     this.userHasUpvoted = true;
+                    this.userDidLikeMediaWithGuid = this.videoObject.getVideoGuid();
                     videoObject.setLikeCount(videoObject.getLikeCount() + 1);
                     cordova.getActivity().runOnUiThread(new Runnable() {
                         public void run() {
                             adapter.notifyItemChanged(1);
                         }
                     });
+                    PluginResult result = new PluginResult(PluginResult.Status.OK, "likedGuid:" + this.userDidLikeMediaWithGuid);
+                    result.setKeepCallback(true);
+                    callbackContext.sendPluginResult(result);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -1088,6 +1058,7 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
             public void run() {
 
                 final AlertDialog.Builder builder;
+                final AlertDialog actionDialog;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
                     builder = new AlertDialog.Builder(cordova.getActivity(), 1);
                 } else {
@@ -1105,7 +1076,6 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
                                 dialog.cancel();
                             }
                         });
-
                 if (videoObject.getOwnerGuid().equals(currentUser.getGuid())) {
                     final String[] buttons = {"Delete Media"};
                     builder.setItems(buttons, new DialogInterface.OnClickListener() {
@@ -1132,9 +1102,8 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
                         dialog.dismiss();
                     }
                 });
-
-                dialog = builder.create();
-                dialog.show();
+                actionDialog = builder.create();
+                actionDialog.show();
             }
         };
         this.cordova.getActivity().runOnUiThread(runnable);
@@ -1150,7 +1119,6 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
 // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         builder.setView(input);
-
 // Set up the buttons
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
@@ -1165,24 +1133,14 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
                 dialog.cancel();
             }
         });
-
-        builder.show();
+        AlertDialog reportMediaDialog = builder.create();
+        reportMediaDialog.show();
     }
 
-//    public String getTimeSince(String time) {
-//        DateFormat sdf = new SimpleDateFormat("hh:mm:ss");
-//        try {
-//            // To get the date object from the string just called the
-//            // parse method and pass the time string to it. This method
-//            // throws ParseException if the time string is invalid.
-//            // But remember as we don't pass the date information this
-//            // date object will represent the 1st of january 1970.
-//            Date date = sdf.parse(time);
-//            System.out.println("Date and Time: " + date);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
+    public void hideKeyboard() {
+        InputMethodManager imm = (InputMethodManager) cordova.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(commentInputView.getWindowToken(), 0);
+    }
 }
 
 class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
@@ -1254,7 +1212,7 @@ class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
             case TYPE_TEXT: {
                 View view = LayoutInflater.from(context).inflate(R.layout.media_caption_row, parent, false);
                 if (videoObject != null) {
-                    if (videoObject.getVideoCaption().equals("")) {
+                    if (videoObject.getVideoCaption() == null || videoObject.getVideoCaption().equals("")) {
                         view.getLayoutParams().height = 0;
                     }
                 }
@@ -1310,6 +1268,7 @@ class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
 //                PluginResult result = new PluginResult(PluginResult.Status.OK, "comment");
 //                callbackContext.sendPluginResult(result);
                     if (reason.equals("pushToLocation")) {
+                        mVideoPlayerRef.backButtonSelected();
                         PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, reason);
                         pluginResult.setKeepCallback(true);
                         mVideoPlayerRef.callbackContext.sendPluginResult(pluginResult);
@@ -1321,6 +1280,15 @@ class MyRecyclerViewAdapter extends RecyclerView.Adapter<BaseViewHolder> {
         } else {
             Comment comment = commentList.get(i - 5);
             customViewHolder.bind(comment, i, this);
+            customViewHolder.setCompletionHandler(new CompletionHandler() {
+                @Override
+                public void handle(String reason) {
+                    mVideoPlayerRef.backButtonSelected();
+                    PluginResult result = new PluginResult(PluginResult.Status.OK, "pushToUser:" + reason);
+                    result.setKeepCallback(true);
+                    mVideoPlayerRef.callbackContext.sendPluginResult(result);
+                }
+            });
         }
     }
 
@@ -1393,24 +1361,25 @@ class VideoRowViewHolder extends BaseViewHolder<String> {
 
     @Override
     public void bind(String videoURL, int row, MyRecyclerViewAdapter adapter) {
-        Uri videoURI = Uri.parse(videoURL);
-        videoView.setVideoURI(videoURI);
-        this.videoView.start();
+        if (!this.videoView.isPlaying()) {
+            Uri videoURI = Uri.parse(videoURL);
+            videoView.setVideoURI(videoURI);
+            this.videoView.start();
+            videoView.setOnPreparedListener(new OnPreparedListener() {
+                @Override
+                public void onPrepared(MediaPlayer mp) {
+                    mp.setLooping(true);
+                }
+            });
 
-        videoView.setOnPreparedListener(new OnPreparedListener() {
-            @Override
-            public void onPrepared(MediaPlayer mp) {
-                mp.setLooping(true);
-            }
-        });
+            videoView.setOnErrorListener(new OnErrorListener() {
+                @Override
+                public boolean onError(MediaPlayer mp, int what, int extra) {
 
-        videoView.setOnErrorListener(new OnErrorListener() {
-            @Override
-            public boolean onError(MediaPlayer mp, int what, int extra) {
-
-                return false;
-            }
-        });
+                    return false;
+                }
+            });
+        }
     }
 }
 
@@ -1555,6 +1524,13 @@ class CommentViewHolder extends BaseViewHolder<Comment> {
         commentTextView.setText(commentObject.getCommentText());
         commenterUsernameText.setText(commentObject.getKingPinsUserName());
         commentedOnDate.setText(commentObject.getCreatedAt());
+
+        userProfileView.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                savedHandler.handle(commentObject.getKingPinsUserGuid());
+            }
+        });
+
         new DownloadImageTask(userProfileView)
                 .execute(commentObject.getKingPinsUserProfileImageUrl());
     }
@@ -1583,6 +1559,8 @@ class Comment {
         return this;
     }
 
+    public String getKingPinsUserGuid() { return kingPinsUserGuid; }
+
     public String getCommentText() {
         return commentText;
     }
@@ -1598,6 +1576,10 @@ class Comment {
     public String getCreatedAt() {
         return createdAt;
     }
+
+    public void setCreatedAt(String createdAt) {
+        this.createdAt = createdAt;
+    }
 }
 
 class Video {
@@ -1609,6 +1591,8 @@ class Video {
     private String address;
     private String ownerGuid;
     private String ownerProfileImageUrl;
+    private String ownerUsername;
+    private String createdAt;
 
     private List<String> trickTypes;
     private String city;
@@ -1627,10 +1611,12 @@ class Video {
         try {
             this.videoGuid = videoObject.getString("guid");
             this.ownerGuid = videoObject.getString("ownerGuid");
-            this.caption = videoObject.getString("caption");
+            this.ownerUsername = videoObject.getString("ownerUsername");
+            this.ownerProfileImageUrl = videoObject.getString("ownerProfileImageUrl");
             this.commentCount = videoObject.getInt("commentCount");
             this.likeCount = videoObject.getInt("likeCount");
             this.geoPoint = videoObject.getJSONObject("geoPoint");
+            this.createdAt = videoObject.getString("createdAt");
             JSONArray arr = videoObject.getJSONArray("trickTypes");
             List<String> list = new ArrayList<String>();
             for(int i = 0; i < arr.length(); i++){
@@ -1640,7 +1626,11 @@ class Video {
         } catch (Exception e) {
 
         }
-
+        try {
+            this.caption = videoObject.getString("caption");
+        } catch (Exception e) {
+            Log.v("Error", "No Caption available");
+        }
         try {
             this.address = videoObject.getString("address");
             this.city = videoObject.getString("city");
@@ -1707,6 +1697,18 @@ class Video {
 
     public String getOwnerGuid() {
         return ownerGuid;
+    }
+
+    public String getOwnerProfileImageUrl() {
+        return ownerProfileImageUrl;
+    }
+
+    public String getOwnerUsername() {
+        return ownerUsername;
+    }
+
+    public String getCreatedAt() {
+        return createdAt;
     }
 }
 
