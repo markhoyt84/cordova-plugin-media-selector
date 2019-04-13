@@ -1,5 +1,5 @@
 {
-  "name": "cordova-plugin-video-player",
+  "name": "cordova-plugin-media-selector",
   "version": "1.0.1",
   "description": "A Codova plugin that simply allows you to immediately play a video in fullscreen mode.",
   "cordova": {
@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/markhoyt84/cordova-video-player.git"
+    "url": "git+https://github.com/markhoyt84/cordova-plugin-media-selector.git"
   },
   "keywords": [
     "ecosystem:cordova",
@@ -34,7 +34,7 @@
   "author": "Mark Hoyt",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/markhoyt84/cordova-video-player/issues"
+    "url": "https://github.com/markhoyt84/cordova-plugin-media-selector/issues"
   },
-  "homepage": "https://github.com/markhoyt84/cordova-video-player#readme"
+  "homepage": "https://github.com/markhoyt84/cordova-plugin-media-selector#readme"
 }
